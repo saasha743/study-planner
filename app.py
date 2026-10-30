@@ -39,7 +39,7 @@ def format_date(value):
     return parse_exam_date(value).strftime("%d %b %Y")
 def safe_difficulty(subject):
     try:
-        return max(1,min(5, int(subject.get("difficulty" , 1)))
+        return max(1,min(5, int(subject.get("difficulty" , 1))))
     except (ValueError,TypeError):
         return 1
 def safe_days_left(subject):
