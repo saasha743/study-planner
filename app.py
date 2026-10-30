@@ -37,6 +37,19 @@ def days_left(exam_date_str):
 
 def format_date(value):
     return parse_exam_date(value).strftime("%d %b %Y")
+def safe_difficulty(subject):
+    try:
+        return max(1,min(5,int(subject.get("difficulty",1)))
+    except (ValueError,TypeError):
+        return 1
+def safe_days_left(subject):
+    try:
+        return days_left(subject["exam_date"])
+    except(KeyError, ValueError ,TypeError):
+        return 999999
+if "subjects" not in st.session_state:
+    st.session_state.subjects =load_data()
+                    
 
 if "subjects" not in st.session_state:
     st.session_state.subjects = load_data()
@@ -99,7 +112,7 @@ with tab_plan:
         else:
             scored = []
             for subject, remaining in upcoming:
-                difficulty = int(subject.get("difficulty", 1))
+                difficulty = safe_difficulty(subject)
                 priority = difficulty / max(remaining, 1)
                 scored.append((subject, remaining, priority))
             total_priority = sum(item[2] for item in scored)
@@ -133,7 +146,7 @@ with tab_subjects:
     else:
         sorted_subjects = sorted(
             subjects,
-            key=lambda s: days_left(s["exam_date"]) if "exam_date" in s else 999999
+            key=safe_days_left
         )
         for idx, subject in enumerate(sorted_subjects):
             try:
