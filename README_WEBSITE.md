@@ -2,12 +2,17 @@
 
 This is a browser-based version of the original Study Planner CLI, built with Streamlit.
 
+**live app:**  https://study-planner -xdviu4euzmgbqjpz2a2tlp.streamlit.app/
+
 ## Features
 - Add subjects, exam dates, and difficulty (1–5)
 - Sort subjects by nearest exam
 - Generate a daily plan using `priority = difficulty / days left`
 - Delete subjects
 - Save subject data in `subjects.json`
+
+- Countdown colours: red(3 days or less), orange(7 days or less), green(more than 7 days)
+- choose your study hours and get a time split per subject
 
 ## Run locally
 1. Install Python 3.9 or newer.
@@ -27,3 +32,5 @@ This is a browser-based version of the original Study Planner CLI, built with St
 
 ## Note about saving data online
 This starter version saves data in `subjects.json`. On hosted services, local files may not be permanent across restarts or redeployments. For long-term, multi-device storage, connect a database later.
+
+All visitors share the same data file, so subjects added by one person are visible to everyone.
