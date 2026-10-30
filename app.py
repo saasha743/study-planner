@@ -161,13 +161,17 @@ with tab_subjects:
                 difficulty = int(subject.get("difficulty", 1))
                 middle.write(f"Difficulty: **{difficulty}/5**")
                 if remaining is None:
-                    middle.caption("Check exam date")
+                    middle.markdown(":gray[Check exam date]")
                 elif remaining < 0:
-                    middle.caption("Exam passed")
+                    middle.markdown(":gray[Exam passed]")
                 elif remaining == 0:
-                    middle.caption("🎯 Exam is today!")
+                    middle.markdown(":red[**🎯 Exam is today!**]")
+                elif remaining <= 3:
+                    middle.markdown(f":red[**{remaining} day(s) left**]")
+                elif remaining <= 7:
+                    middle.markdown(f":orange[**{remaining} day(s) left**]")
                 else:
-                    middle.caption(f"{remaining} day(s) left")
+                    middle.markdown(f":green[{remaining} day(s) left]")
                 # Match the subject in the underlying list by its data, including duplicate names.
                 if right.button("Delete", key=f"delete_{idx}_{subject.get('name', 'subject')}", use_container_width=True):
                     original_index = subjects.index(subject)
