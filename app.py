@@ -139,7 +139,65 @@ col4.metric("🔥 Study streak", f"{study_streak(subjects)} day(s)")
 plan_items = [(s, r) for s, r in upcoming if not is_resting(s)]
 
 st.divider()
-tab_plan, tab_subjects, tab_add, tab_progress, tab_week, tab_check = st.tabs(["✨ Today's plan", "📖 My subjects", "➕ Add a subject", "📊 Progress", "📅 Week plan", "✅ Checklist"])
+tab_plan, tab_subjects, tab_add, tab_progress, tab_week, tab_check, tab_perf = st.tabs(["✨ Today's plan", "📖 My subjects", "➕ Add a subject", "📊 Progress", "📅 Week plan", "✅ Checklist", "🏆 Performance"])
+with tab_perf:
+    st.subheader("Your weekly performance")
+    goal_hours = st.number_input("Your daily study goal (hours)", min_value=0.25, max_value=24.0, value=2.0, step=0.25, key="goal_hours")
+    goal_minutes = goal_hours * 60
+    perf_days = [date.today() - timedelta(days=n) for n in range(6, -1, -1)]
+    perf_minutes = []
+    subject_minutes = {}
+    for perf_day in perf_days:
+        perf_key = perf_day.strftime(DATE_FORMAT)
+        day_sum = 0
+        for s_idx, s in enumerate(subjects):
+            logs = s.get("studied", {})
+            if isinstance(logs, dict):
+                try:
+                    logged = int(logs.get(perf_key, 0))
+                except (ValueError, TypeError):
+                    logged = 0
+                day_sum += logged
+                subject_minutes[s_idx] = subject_minutes.get(s_idx, 0) + logged
+        perf_minutes.append(day_sum)
+
+    goal_days_met = sum(1 for m in perf_minutes if m >= goal_minutes)
+    avg_completion = sum(min(m / goal_minutes, 1.0) for m in perf_minutes) / 7
+    score = round(avg_completion * 100)
+    if score >= 85:
+        verdict = "🌟 Excellent week! You stayed on track."
+    elif score >= 60:
+        verdict = "👍 Good week. A little more consistency will push you higher."
+    elif score >= 30:
+        verdict = "🙂 You're getting there. Try to study a bit every day."
+    else:
+        verdict = "🚀 Just getting started. Log your study time to build momentum."
+
+    perf1, perf2, perf3 = st.columns(3)
+    perf1.metric("Score", f"{score}/100")
+    perf2.metric("Goal met", f"{goal_days_met} / 7 days")
+    perf3.metric("Avg per day", f"{sum(perf_minutes) / 7 / 60:.1f} h")
+    st.progress(score / 100)
+    st.info(verdict)
+    st.bar_chart(
+        [{"Day": d.strftime("%m-%d %a"), "Minutes": m} for d, m in zip(perf_days, perf_minutes)],
+        x="Day",
+        y="Minutes",
+    )
+
+    st.markdown("*Needs attention*")
+    attention = []
+    for s_idx, s in enumerate(subjects):
+        left_days = safe_days_left(s)
+        week_mins = subject_minutes.get(s_idx, 0)
+        if 0 <= left_days <= 7 and week_mins < 60 and not is_resting(s):
+            attention.append((left_days, s.get("name", "Unnamed"), week_mins))
+    if attention:
+        for left_days, subject_name, week_mins in sorted(attention):
+            when = "today" if left_days == 0 else f"in {left_days} day(s)"
+            st.warning(f"{subject_name}: exam {when}, only {week_mins} min studied this week.")
+    else:
+        st.success("No exam in the next 7 days is being neglected. Nice!")
 with tab_check:
     st.subheader("Today's checklist")
     check_day = date.today().strftime(DATE_FORMAT)
