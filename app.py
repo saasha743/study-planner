@@ -284,6 +284,18 @@ with tab_subjects:
                             save_data(subjects)
                             st.rerun()
                     st.caption(f"Studied today: {studied_today(subject)} min · Total: {total_studied(subject) / 60:.1f} h")
+                    today_key = date.today().strftime(DATE_FORMAT)
+                    done_map = subject.get("done", {})
+                    is_done = isinstance(done_map, dict) and bool(done_map.get(today_key))
+                    ticked = st.checkbox("✅ Done for today", value=is_done, key=f"done_{idx}{today_key}{int(is_done)}")
+                    if ticked != is_done:
+                        for s in subjects:
+                            if s is subject:
+                                if not isinstance(s.get("done"), dict):
+                                    s["done"] = {}
+                                s["done"][today_key] = ticked
+                        save_data(subjects)
+                        st.rerun()
                 with st.expander("⏱️ Log study time"):
                     with st.form(f"log_form_{idx}"):
                         minutes_done = st.number_input("Minutes you studied", min_value=0, max_value=1440, value=30, step=5, key=f"log_min_{idx}")
