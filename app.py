@@ -133,7 +133,35 @@ col4.metric("🔥 Study streak", f"{study_streak(subjects)} day(s)")
 
 st.divider()
 
-tab_plan, tab_subjects, tab_add, tab_progress = st.tabs(["✨ Today's plan", "📖 My subjects", "➕ Add a subject", "📊 Progress"])
+tab_plan, tab_subjects, tab_add, tab_progress, tab_week = st.tabs(["✨ Today's plan", "📖 My subjects", "➕ Add a subject", "📊 Progress", "📅 Week plan"])
+with tab_week:
+    st.subheader("Your next 7 days")
+    st.write("Each day's study time is shared by urgency and difficulty, the same way as today's plan.")
+    week_hours = st.number_input("Hours you can study each day", min_value=0.25, max_value=24.0, value=3.0, step=0.25, key="week_hours")
+    for offset in range(7):
+        plan_day = date.today() + timedelta(days=offset)
+        items = []
+        for s in subjects:
+            try:
+                left = (parse_exam_date(s["exam_date"]) - plan_day).days
+            except (KeyError, ValueError, TypeError):
+                continue
+            if left < 0:
+                continue
+            score = safe_difficulty(s) / max(left, 1) / (1 + total_studied(s) / 300)
+            items.append((s.get("name", "Unnamed"), left, score))
+        label = "Today" if offset == 0 else plan_day.strftime("%A %d %b")
+        with st.container(border=True):
+            st.markdown(f"*{label}*")
+            if not items:
+                st.caption("No exams left to plan for.")
+            else:
+                total_score = sum(item[2] for item in items)
+                items.sort(key=lambda item: item[2], reverse=True)
+                for subject_name, left, score in items:
+                    minutes = round(week_hours * 60 * score / total_score)
+                    hrs, mins = divmod(minutes, 60)
+                    st.write(f"{subject_name} — {hrs}h {mins}m" + (" · 🎯 exam day" if left == 0 else ""))
 with tab_progress:
     st.subheader("Hours studied per subject")
     rows = [
