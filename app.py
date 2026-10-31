@@ -1,6 +1,6 @@
 import json
 import os
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 
 import streamlit as st
 
@@ -59,7 +59,26 @@ def total_studied(subject):
     if not isinstance(logs, dict):
         return 0
     return sum(int(v) for v in logs.values() if isinstance(v, (int, float)))
-    
+
+def study_streak(all_subjects):
+    days = set()
+    for s in all_subjects:
+        logs = s.get("studied", {})
+        if isinstance(logs, dict):
+            for day_text, minutes in logs.items():
+                try:
+                    if int(minutes) > 0:
+                        days.add(parse_exam_date(day_text))
+                except (ValueError, TypeError):
+                    continue
+    current = date.today()
+    if current not in days:
+        current = current - timedelta(days=1)
+    streak = 0
+    while current in days:
+        streak += 1
+        current = current - timedelta(days=1)
+    return streak
 if "subjects" not in st.session_state:
     st.session_state.subjects =load_data()
                     
@@ -105,11 +124,12 @@ for subject in subjects:
     except (KeyError, ValueError, TypeError):
         continue
 
-col1, col2, col3 = st.columns(3)
+col2, col3, col4 = st.columns(4)
 col1.metric("📘 Total subjects", len(subjects))
 col2.metric("🗓️ Upcoming exams", len(upcoming))
 closest = min((remaining for _, remaining in upcoming), default=None)
 col3.metric("⏳ Nearest exam", "Today" if closest == 0 else (f"{closest} days" if closest is not None else "—"))
+col4.metric("🔥 Study streak", f"{study_streak(subjects)} day(s)")
 
 st.divider()
 
