@@ -315,7 +315,7 @@ with tab_subjects:
                                     s.pop("rest_until", None)
                             save_data(subjects)
                             st.rerun()
-    with tab_add:
+with tab_add:
     st.subheader("Add a new subject")
     with st.form("add_subject_form", clear_on_submit=True):
         name = st.text_input("Subject name", placeholder="e.g. Mathematics")
