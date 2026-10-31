@@ -296,12 +296,12 @@ with tab_subjects:
                                 logs[day_key] = logs.get(day_key, 0) + int(minutes_done)
                         save_data(subjects)
                         st.rerun()
-                   if is_resting(subject):
-                    st.caption(f"😴 Resting until {parse_exam_date(subject['rest_until']).strftime('%d %b')}")
-                with st.expander("😴 Rest this subject"):
-                    with st.form(f"rest_form_{idx}"):
-                        rest_days = st.number_input("Rest for how many days?", min_value=1, max_value=14, value=1, step=1, key=f"rest_days_{idx}")
-                        rest_submit = st.form_submit_button("Start rest")
+                    if is_resting(subject):
+                        st.caption(f"😴 Resting until {parse_exam_date(subject['rest_until']).strftime('%d %b')}")
+                    with st.expander("😴 Rest this subject"):
+                        with st.form(f"rest_form_{idx}"):
+                           rest_days = st.number_input("Rest for how many days?", min_value=1, max_value=14, value=1, step=1, key=f"rest_days_{idx}")
+                           rest_submit = st.form_submit_button("Start rest")
                     if rest_submit:
                         for s in subjects:
                             if s is subject:
@@ -314,7 +314,7 @@ with tab_subjects:
                                 if s is subject:
                                     s.pop("rest_until", None)
                             save_data(subjects)
-                            st.rerun()     
+                            st.rerun()
     with tab_add:
     st.subheader("Add a new subject")
     with st.form("add_subject_form", clear_on_submit=True):
