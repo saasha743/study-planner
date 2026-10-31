@@ -60,6 +60,12 @@ def total_studied(subject):
         return 0
     return sum(int(v) for v in logs.values() if isinstance(v, (int, float)))
 
+def is_resting(subject, on_day=None):
+    on_day = on_day or date.today()
+    try:
+        return on_day < parse_exam_date(subject["rest_until"])
+    except (KeyError, ValueError, TypeError):
+        return False
 def study_streak(all_subjects):
     days = set()
     for s in all_subjects:
@@ -130,6 +136,7 @@ col2.metric("🗓️ Upcoming exams", len(upcoming))
 closest = min((remaining for _, remaining in upcoming), default=None)
 col3.metric("⏳ Nearest exam", "Today" if closest == 0 else (f"{closest} days" if closest is not None else "—"))
 col4.metric("🔥 Study streak", f"{study_streak(subjects)} day(s)")
+plan_items = [(s, r) for s, r in upcoming if not is_resting(s)]
 
 st.divider()
 
@@ -142,6 +149,8 @@ with tab_week:
         plan_day = date.today() + timedelta(days=offset)
         items = []
         for s in subjects:
+            if is_resting(s, plan_day):
+                continue
             try:
                 left = (parse_exam_date(s["exam_date"]) - plan_day).days
             except (KeyError, ValueError, TypeError):
@@ -178,11 +187,11 @@ with tab_plan:
     st.write("Your available study time is shared according to each subject's urgency and difficulty.")
     hours = st.number_input("How many hours can you study today?", min_value=0.25, max_value=24.0, value=3.0, step=0.25)
     if st.button("Create my study plan", type="primary", use_container_width=True):
-        if not upcoming:
+        if not plan_items:
             st.info("No upcoming exams yet. Add a subject in the **Add a subject** tab.")
         else:
             scored = []
-            for subject, remaining in upcoming:
+            for subject, remaining in plan_items:
                 difficulty = safe_difficulty(subject)
                 priority = difficulty / max(remaining, 1)/(1 + total_studied(subject)/300)
                 scored.append((subject, remaining, priority))
@@ -287,7 +296,26 @@ with tab_subjects:
                                 logs[day_key] = logs.get(day_key, 0) + int(minutes_done)
                         save_data(subjects)
                         st.rerun()
-with tab_add:
+                   if is_resting(subject):
+                    st.caption(f"😴 Resting until {parse_exam_date(subject['rest_until']).strftime('%d %b')}")
+                with st.expander("😴 Rest this subject"):
+                    with st.form(f"rest_form_{idx}"):
+                        rest_days = st.number_input("Rest for how many days?", min_value=1, max_value=14, value=1, step=1, key=f"rest_days_{idx}")
+                        rest_submit = st.form_submit_button("Start rest")
+                    if rest_submit:
+                        for s in subjects:
+                            if s is subject:
+                                s["rest_until"] = (date.today() + timedelta(days=int(rest_days))).strftime(DATE_FORMAT)
+                        save_data(subjects)
+                        st.rerun()
+                    if is_resting(subject):
+                        if st.button("Resume now", key=f"resume_{idx}"):
+                            for s in subjects:
+                                if s is subject:
+                                    s.pop("rest_until", None)
+                            save_data(subjects)
+                            st.rerun()     
+    with tab_add:
     st.subheader("Add a new subject")
     with st.form("add_subject_form", clear_on_submit=True):
         name = st.text_input("Subject name", placeholder="e.g. Mathematics")
