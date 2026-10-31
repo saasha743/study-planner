@@ -180,7 +180,27 @@ with tab_subjects:
                     st.session_state.subjects = subjects
                     st.success(f"Deleted {removed.get('name', 'subject')}.")
                     st.rerun()
-
+with st.expander("✏️ Edit this subject"):
+                    with st.form(f"edit_form_{idx}"):
+                        new_name = st.text_input("Subject name", value=subject.get("name", ""), key=f"edit_name_{idx}")
+                        try:
+                            current_date = parse_exam_date(subject["exam_date"])
+                        except (KeyError, ValueError, TypeError):
+                            current_date = today
+                        new_date = st.date_input("Exam date", value=current_date, key=f"edit_date_{idx}")
+                        new_difficulty = st.slider("Difficulty", min_value=1, max_value=5, value=safe_difficulty(subject), key=f"edit_diff_{idx}")
+                        save_edit = st.form_submit_button("Save changes", type="primary")
+                    if save_edit:
+                        if not new_name.strip():
+                            st.error("Please enter a subject name.")
+                        else:
+                            for s in subjects:
+                                if s is subject:
+                                    s["name"] = new_name.strip()
+                                    s["exam_date"] = new_date.strftime(DATE_FORMAT)
+                                    s["difficulty"] = new_difficulty
+                            save_data(subjects)
+                            st.rerun()
 with tab_add:
     st.subheader("Add a new subject")
     with st.form("add_subject_form", clear_on_submit=True):
