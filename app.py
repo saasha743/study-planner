@@ -124,7 +124,7 @@ for subject in subjects:
     except (KeyError, ValueError, TypeError):
         continue
 
-col2, col3, col4 = st.columns(4)
+col1, col2, col3, col4 = st.columns(4)
 col1.metric("📘 Total subjects", len(subjects))
 col2.metric("🗓️ Upcoming exams", len(upcoming))
 closest = min((remaining for _, remaining in upcoming), default=None)
