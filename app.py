@@ -133,8 +133,18 @@ col4.metric("🔥 Study streak", f"{study_streak(subjects)} day(s)")
 
 st.divider()
 
-tab_plan, tab_subjects, tab_add = st.tabs(["✨ Today's plan", "📖 My subjects", "➕ Add a subject"])
-
+tab_plan, tab_subjects, tab_add, tab_progress = st.tabs(["✨ Today's plan", "📖 My subjects", "➕ Add a subject", "📊 Progress"])
+with tab_progress:
+    st.subheader("Hours studied per subject")
+    rows = [
+        {"Subject": s.get("name", "Unnamed"), "Hours": round(total_studied(s) / 60, 2)}
+        for s in subjects
+    ]
+    if not rows or all(r["Hours"] == 0 for r in rows):
+        st.info("No study time logged yet. Log time in the *My subjects* tab and your chart will appear here.")
+    else:
+        st.metric("Total hours studied", f"{sum(r['Hours'] for r in rows):.1f} h")
+        st.bar_chart(rows, x="Subject", y="Hours")
 with tab_plan:
     st.subheader("Build today's study plan")
     st.write("Your available study time is shared according to each subject's urgency and difficulty.")
