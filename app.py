@@ -150,7 +150,9 @@ with tab_plan:
                     c1.markdown(f"**{subject['name']}**")
                     c1.caption("Exam today" if remaining == 0 else f"{remaining} day(s) until exam")
                     c2.markdown(f"### {hours_part}h {mins_part}m")
-                    st.progress(min(max(priority / max(item[2] for item in scored), 0.0), 1.0))
+                    done = studied_today(subject)
+                    st.progress(min(done / max(mins, 1), 1.0))
+                    st.caption(f"Studied today: {done} of {mins} min" + (" ✅" if done >= mins else ""))
 
 with tab_subjects:
     st.subheader("Your subjects")
