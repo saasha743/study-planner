@@ -139,8 +139,35 @@ col4.metric("🔥 Study streak", f"{study_streak(subjects)} day(s)")
 plan_items = [(s, r) for s, r in upcoming if not is_resting(s)]
 
 st.divider()
-
-tab_plan, tab_subjects, tab_add, tab_progress, tab_week = st.tabs(["✨ Today's plan", "📖 My subjects", "➕ Add a subject", "📊 Progress", "📅 Week plan"])
+tab_plan, tab_subjects, tab_add, tab_progress, tab_week, tab_check = st.tabs(["✨ Today's plan", "📖 My subjects", "➕ Add a subject", "📊 Progress", "📅 Week plan", "✅ Checklist"])
+with tab_check:
+    st.subheader("Today's checklist")
+    check_day = date.today().strftime(DATE_FORMAT)
+    check_items = sorted(plan_items, key=lambda item: item[1])
+    if not check_items:
+        st.info("Nothing to check off yet. Add a subject in the *Add a subject* tab.")
+    else:
+        done_total = sum(
+            1 for subject_item, _ in check_items
+            if isinstance(subject_item.get("done"), dict) and subject_item["done"].get(check_day)
+        )
+        st.progress(done_total / len(check_items))
+        st.caption(f"{done_total} of {len(check_items)} done today")
+        for n, (check_subject, check_left) in enumerate(check_items):
+            done_data = check_subject.get("done", {})
+            already_done = isinstance(done_data, dict) and bool(done_data.get(check_day))
+            hint = "exam today" if check_left == 0 else f"{check_left} day(s) to exam"
+            ticked_now = st.checkbox(
+                f"{check_subject.get('name', 'Unnamed')} · {hint}",
+                value=already_done,
+                key=f"check_{n}{check_day}{int(already_done)}",
+            )
+            if ticked_now != already_done:
+                if not isinstance(check_subject.get("done"), dict):
+                    check_subject["done"] = {}
+                check_subject["done"][check_day] = ticked_now
+                save_data(subjects)
+                st.rerun()
 with tab_week:
     st.subheader("Your next 7 days")
     st.write("Each day's study time is shared by urgency and difficulty, the same way as today's plan.")
