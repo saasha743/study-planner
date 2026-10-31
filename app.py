@@ -380,3 +380,37 @@ with tab_add:
 
 st.divider()
 st.caption("Study Planner · Plan smart, study calmly. Data is stored in a local JSON file.")
+st.divider()
+    st.subheader("Topic checklists")
+    if not subjects:
+        st.info("Add a subject first, then add topics to it here.")
+    for t_idx, t_subject in enumerate(sorted(subjects, key=safe_days_left)):
+        topics = t_subject.get("topics", [])
+        if not isinstance(topics, list):
+            topics = []
+        done_topics = sum(1 for tp in topics if isinstance(tp, dict) and tp.get("done"))
+        with st.expander(f"📝 {t_subject.get('name', 'Unnamed')}"):
+            st.caption(f"{done_topics} of {len(topics)} topics done")
+            for p_idx, topic in enumerate(topics):
+                if not isinstance(topic, dict):
+                    continue
+                t_done = bool(topic.get("done"))
+                t_cols = st.columns([5, 1])
+                t_ticked = t_cols[0].checkbox(topic.get("title", "Topic"), value=t_done, key=f"topic_{t_idx}{p_idx}{int(t_done)}")
+                if t_ticked != t_done:
+                    topic["done"] = t_ticked
+                    save_data(subjects)
+                    st.rerun()
+                if t_cols[1].button("🗑️", key=f"topicdel_{t_idx}_{p_idx}"):
+                    topics.pop(p_idx)
+                    save_data(subjects)
+                    st.rerun()
+            with st.form(f"topic_form_{t_idx}", clear_on_submit=True):
+                new_topic = st.text_input("New topic", placeholder="e.g. Chapter 3 - Algebra", key=f"topic_new_{t_idx}")
+                add_topic = st.form_submit_button("Add topic")
+            if add_topic and new_topic.strip():
+                if not isinstance(t_subject.get("topics"), list):
+                    t_subject["topics"] = []
+                t_subject["topics"].append({"title": new_topic.strip(), "done": False})
+                save_data(subjects)
+                st.rerun()
