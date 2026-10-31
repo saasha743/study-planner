@@ -47,6 +47,19 @@ def safe_days_left(subject):
         return days_left(subject["exam_date"])
     except(KeyError, ValueError ,TypeError):
         return 999999
+
+def studied_today(subject):
+    logs = subject.get("studied", {})
+    if not isinstance(logs, dict):
+        return 0
+    return int(logs.get(date.today().strftime(DATE_FORMAT), 0))
+
+def total_studied(subject):
+    logs = subject.get("studied", {})
+    if not isinstance(logs, dict):
+        return 0
+    return sum(int(v) for v in logs.values() if isinstance(v, (int, float)))
+    
 if "subjects" not in st.session_state:
     st.session_state.subjects =load_data()
                     
@@ -113,7 +126,7 @@ with tab_plan:
             scored = []
             for subject, remaining in upcoming:
                 difficulty = safe_difficulty(subject)
-                priority = difficulty / max(remaining, 1)
+                priority = difficulty / max(remaining, 1)/(1 + total_studied(subject)/300)
                 scored.append((subject, remaining, priority))
             total_priority = sum(item[2] for item in scored)
             scored.sort(key=lambda item: item[2], reverse=True)
@@ -201,7 +214,19 @@ with tab_subjects:
                                     s["difficulty"] = new_difficulty
                             save_data(subjects)
                             st.rerun()
-
+                    st.caption(f"Studied today: {studied_today(subject)} min · Total: {total_studied(subject) / 60:.1f} h")
+                with st.expander("⏱️ Log study time"):
+                    with st.form(f"log_form_{idx}"):
+                        minutes_done = st.number_input("Minutes you studied", min_value=0, max_value=1440, value=30, step=5, key=f"log_min_{idx}")
+                        log_submit = st.form_submit_button("Save time")
+                    if log_submit and minutes_done > 0:
+                        for s in subjects:
+                            if s is subject:
+                                logs = s.setdefault("studied", {})
+                                day_key = date.today().strftime(DATE_FORMAT)
+                                logs[day_key] = logs.get(day_key, 0) + int(minutes_done)
+                        save_data(subjects)
+                        st.rerun()
 with tab_add:
     st.subheader("Add a new subject")
     with st.form("add_subject_form", clear_on_submit=True):
