@@ -180,7 +180,7 @@ with tab_subjects:
                     st.session_state.subjects = subjects
                     st.success(f"Deleted {removed.get('name', 'subject')}.")
                     st.rerun()
-with st.expander("✏️ Edit this subject"):
+                with st.expander("✏️ Edit this subject"):
                     with st.form(f"edit_form_{idx}"):
                         new_name = st.text_input("Subject name", value=subject.get("name", ""), key=f"edit_name_{idx}")
                         try:
@@ -201,6 +201,7 @@ with st.expander("✏️ Edit this subject"):
                                     s["difficulty"] = new_difficulty
                             save_data(subjects)
                             st.rerun()
+
 with tab_add:
     st.subheader("Add a new subject")
     with st.form("add_subject_form", clear_on_submit=True):
