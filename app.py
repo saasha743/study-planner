@@ -172,7 +172,7 @@ col4.metric("🔥 Study streak", f"{study_streak(subjects)} day(s)")
 plan_items = [(s, r) for s, r in upcoming if not is_resting(s)]
 
 st.divider()
-tab_plan, tab_subjects, tab_add, tab_progress, tab_week, tab_check, tab_perf = st.tabs(["✨ Today's plan", "📖 My subjects", "➕ Add a subject", "📊 Progress", "📅 Week plan", "✅ Checklist", "🏆 Performance"])
+tab_plan, tab_subjects, tab_add, tab_progress, tab_week, tab_check, tab_perf, tab_pomo = st.tabs(["✨ Today's plan", "📖 My subjects", "➕ Add a subject", "📊 Progress", "📅 Week plan", "✅ Checklist", "🏆 Performance", "⏱️ Pomodoro"])
 with tab_perf:
     st.subheader("Your weekly performance")
     goal_hours = st.number_input("Your daily study goal (hours)", min_value=0.25, max_value=24.0, value=2.0, step=0.25, key="goal_hours")
@@ -505,3 +505,114 @@ for t_idx, t_subject in enumerate(sorted(subjects, key=safe_days_left)):
         t_subject["topics"].append({"title": new_topic.strip(), "done": False})
         save_data(subjects)
         st.rerun()
+with tab_pomo:
+    st.subheader("Pomodoro timer")
+    if "pomo_msg" in st.session_state:
+        st.success(st.session_state.pop("pomo_msg"))
+    pomo_c1, pomo_c2 = st.columns(2)
+    focus_min = pomo_c1.number_input("Focus (minutes)", min_value=1, max_value=120, value=25, step=1, key="pomo_focus")
+    break_min = pomo_c2.number_input("Break (minutes)", min_value=1, max_value=60, value=5, step=1, key="pomo_break")
+    timer_html = """
+    <style>
+      button {background:#6c5ce7;color:#fff;border:0;border-radius:12px;padding:10px 18px;
+              font-size:16px;font-weight:600;margin:0 4px;cursor:pointer;}
+      button:hover {background:#5546d6;}
+    </style>
+    <div style="font-family:sans-serif;text-align:center;padding:14px;border-radius:18px;
+                background:#ffffff;border:1px solid #e4e0fa;">
+      <div id="mode" style="font-weight:700;color:#6c5ce7;font-size:18px;">Focus</div>
+      <div id="time" style="font-size:64px;font-weight:800;color:#29234b;">25:00</div>
+      <div style="margin:10px 0;">
+        <button onclick="startTimer()">Start</button>
+        <button onclick="pauseTimer()">Pause</button>
+        <button onclick="resetTimer()">Reset</button>
+      </div>
+      <div id="done" style="color:#57536d;font-size:14px;"></div>
+    </div>
+    <script>
+      const focusSecs = _FOCUS_ * 60;
+      const breakSecs = _BREAK_ * 60;
+      let mode = "focus", remaining = focusSecs, timer = null, endAt = 0, done = 0;
+      const timeEl = document.getElementById("time");
+      const modeEl = document.getElementById("mode");
+      const doneEl = document.getElementById("done");
+      function fmt(s) {
+        const m = Math.floor(s / 60), r = s % 60;
+        return String(m).padStart(2, "0") + ":" + String(r).padStart(2, "0");
+      }
+      function render() {
+        timeEl.textContent = fmt(remaining);
+        modeEl.textContent = mode === "focus" ? "🎯 Focus time" : "☕ Break time";
+        doneEl.textContent = "Focus sessions completed: " + done;
+      }
+      function beep() {
+        try {
+          const ctx = new (window.AudioContext || window.webkitAudioContext)();
+          const o = ctx.createOscillator();
+          o.connect(ctx.destination);
+          o.frequency.value = 880;
+          o.start();
+          setTimeout(function () { o.stop(); }, 700);
+        } catch (e) {}
+      }
+      function tick() {
+        remaining = Math.max(0, Math.round((endAt - Date.now()) / 1000));
+        render();
+        if (remaining <= 0) {
+          clearInterval(timer);
+          timer = null;
+          beep();
+          if (mode === "focus") {
+            done++;
+            mode = "break";
+            remaining = breakSecs;
+            render();
+            startTimer();
+          } else {
+            mode = "focus";
+            remaining = focusSecs;
+            render();
+          }
+        }
+      }
+      function startTimer() {
+        if (timer) return;
+        endAt = Date.now() + remaining * 1000;
+        timer = setInterval(tick, 500);
+      }
+      function pauseTimer() {
+        if (!timer) return;
+        clearInterval(timer);
+        timer = null;
+        remaining = Math.max(0, Math.round((endAt - Date.now()) / 1000));
+        render();
+      }
+      function resetTimer() {
+        clearInterval(timer);
+        timer = null;
+        mode = "focus";
+        remaining = focusSecs;
+        render();
+      }
+      render();
+    </script>
+    """.replace("_FOCUS", str(int(focus_min))).replace("BREAK_", str(int(break_min)))
+    st.components.v1.html(timer_html, height=270)
+    st.caption("When a focus session ends, log it below so it counts toward your progress, streak and plan.")
+
+    if not subjects:
+        st.info("Add a subject first, then you can log your study sessions here.")
+    else:
+        with st.form("pomodoro_log_form"):
+            pick = st.selectbox("Which subject did you study?", range(len(subjects)), format_func=lambda i: subjects[i].get("name", "Unnamed"))
+            log_minutes = st.number_input("Minutes to log", min_value=1, max_value=240, value=int(focus_min), step=5)
+            pomo_submit = st.form_submit_button("Log study session", type="primary", use_container_width=True)
+        if pomo_submit:
+            target = subjects[pick]
+            if not isinstance(target.get("studied"), dict):
+                target["studied"] = {}
+            pomo_day = date.today().strftime(DATE_FORMAT)
+            target["studied"][pomo_day] = target["studied"].get(pomo_day, 0) + int(log_minutes)
+            save_data(subjects)
+            st.session_state["pomo_msg"] = f"Logged {int(log_minutes)} min for {target.get('name', 'subject')}. Great work!"
+            st.rerun()
