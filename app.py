@@ -222,7 +222,7 @@ col4.metric("🔥 Study streak", f"{study_streak(subjects)} day(s)")
 plan_items = [(s, r) for s, r in upcoming if not is_resting(s)]
 
 st.divider()
-tab_plan, tab_subjects, tab_add, tab_progress, tab_week, tab_check, tab_perf, tab_pomo = st.tabs(["✨ Today's plan", "📖 My subjects", "➕ Add a subject", "📊 Progress", "📅 Week plan", "✅ Checklist", "🏆 Performance", "⏱️ Pomodoro"])
+tab_plan, tab_subjects, tab_add, tab_progress, tab_week, tab_check, tab_perf, tab_pomo, tab_notes = st.tabs(["✨ Today's plan", "📖 My subjects", "➕ Add a subject", "📊 Progress", "📅 Week plan", "✅ Checklist", "🏆 Performance", "⏱️ Pomodoro", "📝 Notes"])
 with tab_perf:
     st.subheader("Your weekly performance")
     goal_hours = st.number_input("Your daily study goal (hours)", min_value=0.25, max_value=24.0, value=2.0, step=0.25, key="goal_hours")
@@ -680,3 +680,30 @@ with tab_pomo:
 
         pomodoro_clock()
         st.caption(f"Focus sessions completed: {state['pomo_count']}. Each finished focus session is logged to the subject you picked. Keep this page open while the timer runs.")
+
+with tab_notes:
+    st.subheader("Subject notes")
+    if "notes_msg" in st.session_state:
+        st.success(st.session_state.pop("notes_msg"))
+    if not subjects:
+        st.info("Add a subject first, then you can keep notes for it here.")
+    else:
+        note_pick = st.selectbox("Which subject?", range(len(subjects)), format_func=lambda i: subjects[i].get("name", "Unnamed"), key="note_pick")
+        note_subject = subjects[note_pick]
+        with st.form("notes_form"):
+            note_text = st.text_area(
+                "Your notes",
+                value=str(note_subject.get("notes", "")),
+                height=260,
+                placeholder="Hard topics, formulas to remember, questions for the teacher...",
+                key=f"note_text_{note_pick}_{note_subject.get('name', '')}",
+            )
+            note_save = st.form_submit_button("Save notes", type="primary", use_container_width=True)
+        if note_save:
+            note_subject["notes"] = note_text
+            save_data(subjects)
+            st.session_state["notes_msg"] = f"Notes saved for {note_subject.get('name', 'subject')}."
+            st.rerun()
+        with_notes = [s.get("name", "Unnamed") for s in subjects if str(s.get("notes", "")).strip()]
+        if with_notes:
+            st.caption("Subjects with notes: " + ", ".join(with_notes))
