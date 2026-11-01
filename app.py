@@ -445,6 +445,48 @@ with tab_subjects:
                             save_data(subjects)
                             st.rerun()
 with tab_add:
+    if "quick_msg" in st.session_state:
+        st.success(st.session_state.pop("quick_msg"))
+    st.subheader("Quick add: tick your subjects")
+    common_subjects = [
+        "Mathematics", "English", "Science", "Physics", "Chemistry", "Biology",
+        "History", "Geography", "Computer Science", "Economics",
+        "Business Studies", "Psychology", "Art", "Music",
+        "Second Language", "Physical Education",
+    ]
+    existing_names = {s.get("name", "").strip().lower() for s in subjects}
+    quick_options = [n for n in common_subjects if n.lower() not in existing_names]
+    picked = []
+    if quick_options:
+        quick_cols = st.columns(3)
+        for q_idx, q_name in enumerate(quick_options):
+            if quick_cols[q_idx % 3].checkbox(q_name, key=f"quick_{q_name}"):
+                picked.append(q_name)
+    else:
+        st.caption("All the quick-pick subjects are already added.")
+    if picked:
+        with st.form("quick_add_form"):
+            st.write("Set an exam date and difficulty for each subject you ticked:")
+            quick_inputs = []
+            for q_name in picked:
+                qc1, qc2 = st.columns(2)
+                q_date = qc1.date_input(f"{q_name}: exam date", min_value=today, value=today + timedelta(days=14), key=f"qdate_{q_name}")
+                q_diff = qc2.slider(f"{q_name}: difficulty", min_value=1, max_value=5, value=3, key=f"qdiff_{q_name}")
+                quick_inputs.append((q_name, q_date, q_diff))
+            quick_submit = st.form_submit_button("Add ticked subjects", type="primary", use_container_width=True)
+        if quick_submit:
+            for q_name, q_date, q_diff in quick_inputs:
+                subjects.append({
+                    "name": q_name,
+                    "exam_date": q_date.strftime(DATE_FORMAT),
+                    "difficulty": q_diff,
+                })
+            save_data(subjects)
+            st.session_state.subjects = subjects
+            st.session_state["quick_msg"] = f"Added {len(quick_inputs)} subject(s)!"
+            st.rerun()
+    st.divider()
+    st.subheader("Or add a custom subject")
     st.subheader("Add a new subject")
     with st.form("add_subject_form", clear_on_submit=True):
         name = st.text_input("Subject name", placeholder="e.g. Mathematics")
