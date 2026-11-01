@@ -277,10 +277,10 @@ with tab_perf:
     st.subheader("Your weekly performance")
     saved_goal_raw = st.session_state.settings.get("goal_hours", 2.0)
     try:
-       saved_goal = min(max(float(saved_goal_raw), 0.25), 24.0)
+        saved_goal = min(max(float(saved_goal_raw), 0.25), 24.0)
     except (TypeError, ValueError):
-       saved_goal = 2.0
-       goal_hours = st.number_input("Your daily study goal (hours)", min_value=0.25, max_value=24.0, value=saved_goal, step=0.25, key="goal_hours")
+        saved_goal = 2.0
+    goal_hours = st.number_input("Your daily study goal (hours)", min_value=0.25, max_value=24.0, value=saved_goal, step=0.25, key="goal_hours")
     if goal_hours != saved_goal:
         st.session_state.settings["goal_hours"] = float(goal_hours)
         save_settings(st.session_state.settings)
