@@ -76,6 +76,54 @@ def save_data(subjects):
             st.session_state["cloud_error"] = result.status_code not in (200, 201)
         except Exception:
             st.session_state["cloud_error"] = True
+SETTINGS_FILE = "settings.json"
+
+def load_settings():
+    """Load small app settings, such as the daily study goal."""
+    if "cloud_settings" in globals():
+        token, repo = cloud_settings()
+        if token and st.session_state.get("cloud_ok"):
+            try:
+                url = f"https://api.github.com/repos/{repo}/contents/{SETTINGS_FILE}"
+                reply = requests.get(url, headers=cloud_headers(token), timeout=15)
+                if reply.status_code == 200:
+                    text = base64.b64decode(reply.json()["content"]).decode("utf-8")
+                    data = json.loads(text)
+                    return data if isinstance(data, dict) else {}
+                if reply.status_code == 404:
+                    return {}
+            except Exception:
+                pass
+    try:
+        with open(SETTINGS_FILE, "r", encoding="utf-8") as file:
+            data = json.load(file)
+        return data if isinstance(data, dict) else {}
+    except (OSError, json.JSONDecodeError):
+        return {}
+
+def save_settings(settings):
+    try:
+        with open(SETTINGS_FILE, "w", encoding="utf-8") as file:
+            json.dump(settings, file, indent=4)
+    except OSError:
+        pass
+    if "cloud_settings" in globals():
+        token, repo = cloud_settings()
+        if token and st.session_state.get("cloud_ok"):
+            try:
+                url = f"https://api.github.com/repos/{repo}/contents/{SETTINGS_FILE}"
+                headers = cloud_headers(token)
+                existing = requests.get(url, headers=headers, timeout=15)
+                body = {
+                    "message": "Update study planner settings",
+                    "content": base64.b64encode(json.dumps(settings, indent=2).encode("utf-8")).decode("ascii"),
+                }
+                if existing.status_code == 200:
+                    body["sha"] = existing.json()["sha"]
+                requests.put(url, headers=headers, json=body, timeout=15)
+            except Exception:
+                pass
+
 def parse_exam_date(value):
     return datetime.strptime(value, DATE_FORMAT).date()
 
@@ -140,6 +188,8 @@ if "subjects" not in st.session_state:
     st.session_state.subjects = load_data()
 
 subjects = st.session_state.subjects
+if "settings" not in st.session_state:
+    st.session_state.settings = load_settings()
 if cloud_settings()[0] and not st.session_state.get("cloud_ok", False):
     st.warning("Permanent storage could not be reached, so your changes may be lost when the app sleeps. Refresh the page to try again.")
 if st.session_state.get("cloud_error"):
@@ -225,7 +275,15 @@ st.divider()
 tab_plan, tab_subjects, tab_add, tab_progress, tab_week, tab_check, tab_perf, tab_pomo, tab_notes = st.tabs(["✨ Today's plan", "📖 My subjects", "➕ Add a subject", "📊 Progress", "📅 Week plan", "✅ Checklist", "🏆 Performance", "⏱️ Pomodoro", "📝 Notes"])
 with tab_perf:
     st.subheader("Your weekly performance")
-    goal_hours = st.number_input("Your daily study goal (hours)", min_value=0.25, max_value=24.0, value=2.0, step=0.25, key="goal_hours")
+    saved_goal_raw = st.session_state.settings.get("goal_hours", 2.0)
+    try:
+       saved_goal = min(max(float(saved_goal_raw), 0.25), 24.0)
+    except (TypeError, ValueError):
+       saved_goal = 2.0
+       goal_hours = st.number_input("Your daily study goal (hours)", min_value=0.25, max_value=24.0, value=saved_goal, step=0.25, key="goal_hours")
+    if goal_hours != saved_goal:
+        st.session_state.settings["goal_hours"] = float(goal_hours)
+        save_settings(st.session_state.settings)
     goal_minutes = goal_hours * 60
     perf_days = [date.today() - timedelta(days=n) for n in range(6, -1, -1)]
     perf_minutes = []
