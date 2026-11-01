@@ -127,6 +127,17 @@ st.markdown(
     }
     .stTabs [data-baseweb="tab-highlight"] {background-color: #6c5ce7;}
     .stTabs [aria-selected="true"] {color: #6c5ce7;}
+    .hero {
+      background: linear-gradient(120deg, #6c5ce7 0%, #4a90e2 100%);
+      border: none; box-shadow: 0 8px 24px rgba(108, 92, 231, .35);
+    }
+    .hero h1 {color: #ffffff;}
+    .hero p {color: #ecebff;}
+    [data-testid="stMetric"] {border-left: 6px solid #6c5ce7;}
+    [data-testid="stMetricValue"] {color: #6c5ce7; font-weight: 800;}
+    .stTabs [aria-selected="true"] {background: #6c5ce7; color: #ffffff;}
+    .stTabs [aria-selected="true"] p {color: #ffffff;}
+    .stTabs [data-baseweb="tab-highlight"] {display: none;}
     </style>
     """,
     unsafe_allow_html=True,
