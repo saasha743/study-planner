@@ -105,6 +105,21 @@ st.markdown(
     }
     .hero h1 {margin: 0; color: #29234b; font-size: 2.35rem;}
     .hero p {margin: .45rem 0 0; color: #57536d; font-size: 1.05rem;}
+    [data-testid="stMetric"] {
+      background: #ffffff; border: 1px solid #e4e0fa; border-radius: 16px;
+      padding: .9rem 1rem; box-shadow: 0 2px 8px rgba(80, 60, 160, .08);
+    }
+    [data-testid="stVerticalBlockBorderWrapper"] {
+      border-radius: 16px; background: #ffffff;
+      box-shadow: 0 2px 8px rgba(80, 60, 160, .06);
+    }
+    .stTabs [data-baseweb="tab-list"] {gap: .4rem;}
+    .stTabs [data-baseweb="tab"] {
+      background: #ece9ff; border-radius: 12px 12px 0 0; padding: .5rem 1rem;
+    }
+    .stButton > button, [data-testid="stFormSubmitButton"] > button {
+      border-radius: 12px; font-weight: 600;
+    }
     </style>
     """,
     unsafe_allow_html=True,
