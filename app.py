@@ -1,4 +1,6 @@
 import json
+import base64
+import requests
 import os
 from datetime import date, datetime, timedelta
 
@@ -13,8 +15,19 @@ st.set_page_config(
     layout="wide",
 )
 
-def load_data():
-    """Load saved subjects. Return an empty list if no usable data exists."""
+def cloud_settings():
+    try:
+        return st.secrets["GITHUB_TOKEN"], st.secrets["GITHUB_REPO"]
+    except Exception:
+        return None, None
+
+def cloud_url(repo):
+    return f"https://api.github.com/repos/{repo}/contents/{DATA_FILE}"
+
+def cloud_headers(token):
+    return {"Authorization": f"Bearer {token}", "Accept": "application/vnd.github+json"}
+
+def load_local():
     if not os.path.exists(DATA_FILE):
         return []
     try:
@@ -24,11 +37,45 @@ def load_data():
     except (json.JSONDecodeError, OSError):
         return []
 
+def load_data():
+    """Load subjects from the private GitHub data repo, or from the local file."""
+    token, repo = cloud_settings()
+    st.session_state["cloud_ok"] = False
+    if token:
+        try:
+            reply = requests.get(cloud_url(repo), headers=cloud_headers(token), timeout=15)
+            if reply.status_code == 200:
+                text = base64.b64decode(reply.json()["content"]).decode("utf-8")
+                data = json.loads(text)
+                st.session_state["cloud_ok"] = True
+                return data if isinstance(data, list) else []
+            if reply.status_code == 404:
+                st.session_state["cloud_ok"] = True
+                return []
+        except Exception:
+            pass
+    return load_local()
+
 def save_data(subjects):
-    """Save subjects to the JSON file."""
+    """Save subjects locally and, when connected, to the private GitHub data repo."""
     with open(DATA_FILE, "w", encoding="utf-8") as file:
         json.dump(subjects, file, indent=4)
-
+    token, repo = cloud_settings()
+    if token and st.session_state.get("cloud_ok"):
+        try:
+            url = cloud_url(repo)
+            headers = cloud_headers(token)
+            existing = requests.get(url, headers=headers, timeout=15)
+            body = {
+                "message": "Update study planner data",
+                "content": base64.b64encode(json.dumps(subjects, indent=2).encode("utf-8")).decode("ascii"),
+            }
+            if existing.status_code == 200:
+                body["sha"] = existing.json()["sha"]
+            result = requests.put(url, headers=headers, json=body, timeout=15)
+            st.session_state["cloud_error"] = result.status_code not in (200, 201)
+        except Exception:
+            st.session_state["cloud_error"] = True
 def parse_exam_date(value):
     return datetime.strptime(value, DATE_FORMAT).date()
 
@@ -93,6 +140,10 @@ if "subjects" not in st.session_state:
     st.session_state.subjects = load_data()
 
 subjects = st.session_state.subjects
+if cloud_settings()[0] and not st.session_state.get("cloud_ok", False):
+    st.warning("Permanent storage could not be reached, so your changes may be lost when the app sleeps. Refresh the page to try again.")
+if st.session_state.get("cloud_error"):
+    st.warning("The last save to permanent storage failed. Your data is safe on screen but may not be stored yet.")
 
 st.markdown(
     """
