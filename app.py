@@ -120,6 +120,13 @@ st.markdown(
     .stButton > button, [data-testid="stFormSubmitButton"] > button {
       border-radius: 12px; font-weight: 600;
     }
+    .stApp {background: linear-gradient(180deg, #f3efff 0%, #eaf4ff 100%);}
+    [data-testid="stBaseButton-primary"], [data-testid="stBaseButton-primaryFormSubmit"],
+    button[kind="primary"], button[kind="primaryFormSubmit"] {
+      background-color: #6c5ce7; border-color: #6c5ce7; color: white;
+    }
+    .stTabs [data-baseweb="tab-highlight"] {background-color: #6c5ce7;}
+    .stTabs [aria-selected="true"] {color: #6c5ce7;}
     </style>
     """,
     unsafe_allow_html=True,
