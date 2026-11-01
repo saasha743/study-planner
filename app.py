@@ -685,25 +685,49 @@ with tab_notes:
     st.subheader("Subject notes")
     if "notes_msg" in st.session_state:
         st.success(st.session_state.pop("notes_msg"))
-    if not subjects:
-        st.info("Add a subject first, then you can keep notes for it here.")
+    general_subjects = [
+        "Mathematics", "English", "Science", "Physics", "Chemistry", "Biology",
+        "History", "Geography", "Computer Science", "Economics",
+        "Business Studies", "Psychology", "Art", "Music",
+        "Second Language", "Physical Education",
+    ]
+    my_names = [s.get("name", "Unnamed") for s in subjects]
+    my_lower = {n.lower() for n in my_names}
+    note_options = my_names + [g for g in general_subjects if g.lower() not in my_lower]
+    note_name = st.selectbox("Which subject?", note_options, key="note_name")
+    note_subject = next((s for s in subjects if s.get("name", "Unnamed").lower() == note_name.lower()), None)
+    if note_subject is None:
+        st.info(f"{note_name} isn't in your planner yet. Add it with an exam date to start keeping notes.")
+        with st.form("notes_add_form"):
+            nc1, nc2 = st.columns(2)
+            note_date = nc1.date_input("Exam date", min_value=today, value=today + timedelta(days=14))
+            note_diff = nc2.slider("Difficulty", min_value=1, max_value=5, value=3)
+            note_add = st.form_submit_button(f"Add {note_name} to my planner", type="primary", use_container_width=True)
+        if note_add:
+            subjects.append({
+                "name": note_name,
+                "exam_date": note_date.strftime(DATE_FORMAT),
+                "difficulty": note_diff,
+            })
+            save_data(subjects)
+            st.session_state.subjects = subjects
+            st.session_state["notes_msg"] = f"{note_name} added. You can write notes for it now."
+            st.rerun()
     else:
-        note_pick = st.selectbox("Which subject?", range(len(subjects)), format_func=lambda i: subjects[i].get("name", "Unnamed"), key="note_pick")
-        note_subject = subjects[note_pick]
         with st.form("notes_form"):
             note_text = st.text_area(
                 "Your notes",
                 value=str(note_subject.get("notes", "")),
                 height=260,
                 placeholder="Hard topics, formulas to remember, questions for the teacher...",
-                key=f"note_text_{note_pick}_{note_subject.get('name', '')}",
+                key=f"note_text_{note_name}",
             )
             note_save = st.form_submit_button("Save notes", type="primary", use_container_width=True)
         if note_save:
             note_subject["notes"] = note_text
             save_data(subjects)
-            st.session_state["notes_msg"] = f"Notes saved for {note_subject.get('name', 'subject')}."
+            st.session_state["notes_msg"] = f"Notes saved for {note_name}."
             st.rerun()
-        with_notes = [s.get("name", "Unnamed") for s in subjects if str(s.get("notes", "")).strip()]
-        if with_notes:
-            st.caption("Subjects with notes: " + ", ".join(with_notes))
+    with_notes = [s.get("name", "Unnamed") for s in subjects if str(s.get("notes", "")).strip()]
+    if with_notes:
+        st.caption("Subjects with notes: " + ", ".join(with_notes))
