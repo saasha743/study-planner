@@ -509,110 +509,82 @@ with tab_pomo:
     st.subheader("Pomodoro timer")
     if "pomo_msg" in st.session_state:
         st.success(st.session_state.pop("pomo_msg"))
-    pomo_c1, pomo_c2 = st.columns(2)
-    focus_min = pomo_c1.number_input("Focus (minutes)", min_value=1, max_value=120, value=25, step=1, key="pomo_focus")
-    break_min = pomo_c2.number_input("Break (minutes)", min_value=1, max_value=60, value=5, step=1, key="pomo_break")
-    timer_html = """
-    <style>
-      button {background:#6c5ce7;color:#fff;border:0;border-radius:12px;padding:10px 18px;
-              font-size:16px;font-weight:600;margin:0 4px;cursor:pointer;}
-      button:hover {background:#5546d6;}
-    </style>
-    <div style="font-family:sans-serif;text-align:center;padding:14px;border-radius:18px;
-                background:#ffffff;border:1px solid #e4e0fa;">
-      <div id="mode" style="font-weight:700;color:#6c5ce7;font-size:18px;">Focus</div>
-      <div id="time" style="font-size:64px;font-weight:800;color:#29234b;">25:00</div>
-      <div style="margin:10px 0;">
-        <button onclick="startTimer()">Start</button>
-        <button onclick="pauseTimer()">Pause</button>
-        <button onclick="resetTimer()">Reset</button>
-      </div>
-      <div id="done" style="color:#57536d;font-size:14px;"></div>
-    </div>
-    <script>
-      const focusSecs = _FOCUS_ * 60;
-      const breakSecs = _BREAK_ * 60;
-      let mode = "focus", remaining = focusSecs, timer = null, endAt = 0, done = 0;
-      const timeEl = document.getElementById("time");
-      const modeEl = document.getElementById("mode");
-      const doneEl = document.getElementById("done");
-      function fmt(s) {
-        const m = Math.floor(s / 60), r = s % 60;
-        return String(m).padStart(2, "0") + ":" + String(r).padStart(2, "0");
-      }
-      function render() {
-        timeEl.textContent = fmt(remaining);
-        modeEl.textContent = mode === "focus" ? "🎯 Focus time" : "☕ Break time";
-        doneEl.textContent = "Focus sessions completed: " + done;
-      }
-      function beep() {
-        try {
-          const ctx = new (window.AudioContext || window.webkitAudioContext)();
-          const o = ctx.createOscillator();
-          o.connect(ctx.destination);
-          o.frequency.value = 880;
-          o.start();
-          setTimeout(function () { o.stop(); }, 700);
-        } catch (e) {}
-      }
-      function tick() {
-        remaining = Math.max(0, Math.round((endAt - Date.now()) / 1000));
-        render();
-        if (remaining <= 0) {
-          clearInterval(timer);
-          timer = null;
-          beep();
-          if (mode === "focus") {
-            done++;
-            mode = "break";
-            remaining = breakSecs;
-            render();
-            startTimer();
-          } else {
-            mode = "focus";
-            remaining = focusSecs;
-            render();
-          }
-        }
-      }
-      function startTimer() {
-        if (timer) return;
-        endAt = Date.now() + remaining * 1000;
-        timer = setInterval(tick, 500);
-      }
-      function pauseTimer() {
-        if (!timer) return;
-        clearInterval(timer);
-        timer = null;
-        remaining = Math.max(0, Math.round((endAt - Date.now()) / 1000));
-        render();
-      }
-      function resetTimer() {
-        clearInterval(timer);
-        timer = null;
-        mode = "focus";
-        remaining = focusSecs;
-        render();
-      }
-      render();
-    </script>
-    """.replace("_FOCUS", str(int(focus_min))).replace("BREAK_", str(int(break_min)))
-    st.components.v1.html(timer_html, height=270)
-    st.caption("When a focus session ends, log it below so it counts toward your progress, streak and plan.")
-
     if not subjects:
-        st.info("Add a subject first, then you can log your study sessions here.")
+        st.info("Add a subject first, then you can study with the timer here.")
     else:
-        with st.form("pomodoro_log_form"):
-            pick = st.selectbox("Which subject did you study?", range(len(subjects)), format_func=lambda i: subjects[i].get("name", "Unnamed"))
-            log_minutes = st.number_input("Minutes to log", min_value=1, max_value=240, value=int(focus_min), step=5)
-            pomo_submit = st.form_submit_button("Log study session", type="primary", use_container_width=True)
-        if pomo_submit:
-            target = subjects[pick]
-            if not isinstance(target.get("studied"), dict):
-                target["studied"] = {}
-            pomo_day = date.today().strftime(DATE_FORMAT)
-            target["studied"][pomo_day] = target["studied"].get(pomo_day, 0) + int(log_minutes)
-            save_data(subjects)
-            st.session_state["pomo_msg"] = f"Logged {int(log_minutes)} min for {target.get('name', 'subject')}. Great work!"
-            st.rerun()
+        state = st.session_state
+        pomo_c1, pomo_c2, pomo_c3 = st.columns(3)
+        focus_min = pomo_c1.number_input("Focus (min)", min_value=1, max_value=120, value=25, step=1, key="pomo_focus")
+        break_min = pomo_c2.number_input("Break (min)", min_value=1, max_value=60, value=5, step=1, key="pomo_break")
+        pomo_pick = pomo_c3.selectbox("Subject", range(len(subjects)), format_func=lambda i: subjects[i].get("name", "Unnamed"))
+        state.setdefault("pomo_mode", "focus")
+        state.setdefault("pomo_running", False)
+        state.setdefault("pomo_left", None)
+        state.setdefault("pomo_end", 0.0)
+        state.setdefault("pomo_planned", 25)
+        state.setdefault("pomo_count", 0)
+
+        def pomo_full(which):
+            return (int(focus_min) if which == "focus" else int(break_min)) * 60
+
+        @st.fragment(run_every=1 if state["pomo_running"] else None)
+        def pomodoro_clock():
+            mode = state["pomo_mode"]
+            if state["pomo_running"]:
+                left = max(0, int(round(state["pomo_end"] - datetime.now().timestamp())))
+            elif state["pomo_left"] is not None:
+                left = state["pomo_left"]
+            else:
+                left = pomo_full(mode)
+
+            if state["pomo_running"] and left <= 0:
+                if mode == "focus":
+                    target = subjects[pomo_pick]
+                    if not isinstance(target.get("studied"), dict):
+                        target["studied"] = {}
+                    day_now = date.today().strftime(DATE_FORMAT)
+                    target["studied"][day_now] = target["studied"].get(day_now, 0) + int(state["pomo_planned"])
+                    save_data(subjects)
+                    state["pomo_count"] += 1
+                    state["pomo_mode"] = "break"
+                    state["pomo_running"] = True
+                    state["pomo_left"] = None
+                    state["pomo_end"] = datetime.now().timestamp() + pomo_full("break")
+                    state["pomo_msg"] = f"🎉 Focus session done! {int(state['pomo_planned'])} min logged for {target.get('name', 'subject')}. Break time!"
+                else:
+                    state["pomo_mode"] = "focus"
+                    state["pomo_running"] = False
+                    state["pomo_left"] = None
+                    state["pomo_msg"] = "☕ Break over. Ready for the next focus session?"
+                st.rerun()
+
+            total = max(pomo_full(mode), 1)
+            minutes_left, seconds_left = divmod(left, 60)
+            title = "🎯 Focus time" if mode == "focus" else "☕ Break time"
+            st.markdown(
+                f"<div style='text-align:center;padding:10px'>"
+                f"<div style='font-weight:700;color:#6c5ce7;font-size:1.2rem'>{title}</div>"
+                f"<div style='font-size:4rem;font-weight:800;color:#29234b'>{minutes_left:02d}:{seconds_left:02d}</div>"
+                f"</div>",
+                unsafe_allow_html=True,
+            )
+            st.progress(min(max(1 - left / total, 0.0), 1.0))
+            b1, b2, b3 = st.columns(3)
+            if b1.button("▶️ Start", use_container_width=True, disabled=state["pomo_running"]):
+                if state["pomo_left"] is None:
+                    state["pomo_planned"] = pomo_full(mode) // 60
+                state["pomo_end"] = datetime.now().timestamp() + left
+                state["pomo_running"] = True
+                st.rerun()
+            if b2.button("⏸️ Pause", use_container_width=True, disabled=not state["pomo_running"]):
+                state["pomo_left"] = left
+                state["pomo_running"] = False
+                st.rerun()
+            if b3.button("↺ Reset", use_container_width=True):
+                state["pomo_mode"] = "focus"
+                state["pomo_running"] = False
+                state["pomo_left"] = None
+                st.rerun()
+
+        pomodoro_clock()
+        st.caption(f"Focus sessions completed: {state['pomo_count']}. Each finished focus session is logged to the subject you picked. Keep this page open while the timer runs.")
